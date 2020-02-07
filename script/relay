@@ -1,0 +1,162 @@
+#!/usr/bin/python3
+import sys, os
+
+import serial
+import logging
+
+"""
+RELAY_PORT should be set as an evironment variable (serial device) 
+
+
+"""
+RELAY_PORT = os.environ.get('RELAY_PORT', None)
+
+    
+logger = logging.getLogger('PowerCtrl')
+#
+class Connection():
+    def __init__(self, port=None, baudrate=None):
+        self.is_connected = False
+        if baudrate and port:
+            self.connect(port, baudrate)
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
+    def connect(self, port, baudrate):
+        self.close()
+        try:
+            self.ser = serial.Serial(port, baudrate=baudrate)
+            self.ser.timeout = 5
+            self.send_command(1, 0)
+            self.is_connected = True
+        except Exception as e:
+            logger.error("connect failed: {}".format(e))
+            self.is_connected = False
+        
+        return self.is_connected
+
+    def close(self):
+        if self.is_connected:
+            self.ser.close()
+            self.is_connected = False
+
+    def get_xor(self, data):
+        return data[0] ^ data[1] ^ data[2]
+
+    def send_command(self, command, data):
+        resp = None
+        if not self.is_connected:
+            return None
+        try:
+            cmd = bytearray([command & 0xFF, 0, data & 0xFF, 0])
+            cmd[3] = self.get_xor(cmd)
+            res = self.ser.write(cmd)
+            if res != 4:
+                logger.error("Send command '{}' failed: res = {}".format(command, res))
+            resp = self.ser.read(4)
+            if len(resp) != 4:
+                logger.error("Read resp '{}' failed: resp = {}".format(command, resp))
+            elif resp[3] != self.get_xor(resp):
+                logger.error("Read resp '{}' failed: resp = {}".format(command, resp))
+        except Exception as e:
+            logger.error("Send command '{}' failed".format(command))
+            logger.error(e)
+            return None
+        return resp
+
+class Control():
+    def __init__(self, initialize_pins=True, port=None, baudrate=None ):
+        self.relays ={'kl30': 32,
+                      'kl15': 8,
+                      'eth': 4,
+                      'egw': 16,
+                      'all': 0x2C,
+                      'eall': 0x3C}
+        self.connection = Connection(port, baudrate)
+        #if initialize_pins:
+            # self.set_pins_default()
+        #    self.init_pins()
+
+    def __del__(self):
+        if self.connection:
+            self.connection.close()
+
+    def set_pins_default(self):
+        if self.connection.is_connected:
+            for name, pin in self.relays.items():
+                self.connection.send_command(3, 0xFF)
+                logger.debug('Mode {}:{} is set to "out"'.format(name, pin))
+
+    def toggle_relay(self, relay_name):
+        pin = self.relays.get(relay_name, None)
+        if pin:
+            result = self.connection.send_command(8, pin)
+            logger.debug('Toggle {}[{}]: {}'.format(relay_name, pin, result))
+        else:
+            logger.warning('Toggle unknown relay: {}'.format(relay_name))
+
+    def set_relay(self, relay_name, state=1):
+        pin = self.relays.get(relay_name, None)
+        if pin:
+            cmd = 6 if (state == 1) else 7
+            result = self.connection.send_command(cmd, pin)
+
+            logger.debug('{} {}[{}]: {}'.format("Set" if state else "Reset",
+                                                relay_name, pin, result))
+        else:
+            logger.warning('Set unknown relay: {}'.format(relay_name))
+            
+    def reset_relay(self, relay_name):
+        self.set_relay(relay_name, 0)
+        
+#r = Control(False, RELAY_PORT, 9600)
+r = Control()
+
+actions = {'set': r.set_relay,
+       'reset': r.reset_relay,
+       'toggle': r.toggle_relay,
+       'on': r.set_relay,
+       'off': r.reset_relay
+       }          
+         
+def print_help():   
+    print("Usage: relay [name, action]")
+    print("ex: relay set all")
+    print("ex: relay all off")
+    print("ex: relay toggle kl15")
+    print("Available relay names:", list(r.relays.keys()))
+    print("Available actions:", list(actions.keys()))
+    print("Serial port is taken from ENV_Var RELAY_PORT")
+    exit()      
+         
+args = sys.argv[1:]
+cmd_args = []
+action = None
+pin = None
+
+
+for i, arg in enumerate(args):
+    if arg == '-h' or arg == '--help':# or arg == 'status':
+        print_help()
+    if arg in actions:
+        action = actions[arg]
+    else:
+        pin = r.relays.get(arg)
+        if pin:
+            pin = arg
+
+if action is None or pin is None :
+    print_help()
+            
+if RELAY_PORT is None:
+    print("Please, specify serial port in ENV_Var RELAY_PORT")
+    exit()  
+    
+r.connection.connect(RELAY_PORT, 9600)
+            
+action(pin)

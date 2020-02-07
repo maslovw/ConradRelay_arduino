@@ -1,5 +1,5 @@
 # ConradRelay_arduino
-Code for Arduino to work as Conrad Relay Card
+Code for Arduino (nano in my case) to work as Conrad Relay Card
 
 Python example: 
 
@@ -28,3 +28,20 @@ print('toggle pin D2')
 cmd(8, 1)
 
 ```
+
+## Pin usage 
+
+Count starts from GPIO D2 
+
+## Relay
+
+[Elegoo Relay Module DC 5V with Optocoupler for Arduino](https://www.amazon.de/gp/product/B01M8G4Y7Z/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1)
+
+## Arduino
+
+[Elegoo Compatible Nano Board for Arduino](https://www.amazon.de/gp/product/B0713ZRJLC/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1)
+
+### issues 
+
+- reboots with each serial port reconnection, to fix remove a capactior, connected to RST pin (DTR-RST)
+
