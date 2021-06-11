@@ -71,12 +71,12 @@ class Connection():
 
 class Control():
     def __init__(self, initialize_pins=True, port=None, baudrate=None ):
-        self.relays ={'kl30': 32,
-                      'kl15': 8,
-                      'eth': 4,
-                      'egw': 16,
-                      'all': 0x2C,
-                      'eall': 0x3C}
+        self.relays ={'kl30': 0b0100,
+                      'kl15': 0b0001,
+                      'eth':  0b1000,
+                      'obd':  0b0010,
+                      'all':  0b11111111,
+                      'eall': 0b1111}
         self.connection = Connection(port, baudrate)
         #if initialize_pins:
             # self.set_pins_default()
@@ -131,7 +131,7 @@ def print_help():
     print("ex: relay toggle kl15")
     print("Available relay names:", list(r.relays.keys()))
     print("Available actions:", list(actions.keys()))
-    print("Serial port is taken from ENV_Var RELAY_PORT")
+    print("Serial port is taken from ENV_Var RELAY_PORT: {}".format(RELAY_PORT))
     exit()      
          
 args = sys.argv[1:]
