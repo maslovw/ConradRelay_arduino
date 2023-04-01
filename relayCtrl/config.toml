@@ -1,0 +1,10 @@
+relay = "/dev/ttyUSB0"
+baudrate = 9600
+
+[relays]
+kl30 = 4
+kl15 = 1
+eth = 8
+obd = 2
+all = 255
+eall = 15
