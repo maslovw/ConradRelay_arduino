@@ -1,17 +1,30 @@
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::time::Duration;
-use anyhow::{Context, Result};
-use log::{debug, error, info, warn};
+use anyhow::Result;
+use log::{error, warn};
 use serde::Deserialize;
-use serialport::{SerialPort, SerialPortBuilder};
+use serialport::SerialPort;
 use structopt::StructOpt;
-use toml::Value;
+
+//#[derive(StructOpt)]
+//struct Opt {
+//    relay_name: String,
+//    action: String,
+//}
+
 
 #[derive(StructOpt)]
+#[structopt(name = "relay_control", about = "Control relays through a serial connection.")]
 struct Opt {
+    /// Custom path to the configuration file
+    #[structopt(short, long, default_value = "config.toml")]
+    config: String,
+
+    #[structopt(help = "Name of the relay to control.")]
     relay_name: String,
+
+    #[structopt(help = "Action to perform on the relay.\nAvailable actions: set, reset, toggle, on, off")]
     action: String,
 }
 
@@ -86,12 +99,13 @@ impl Connection {
 
 fn main() -> Result<()> {
     env_logger::init();
-
-    let config_path = "config.toml";
-    let config = Config::from_file(config_path)?;
-
     let opt = Opt::from_args();
+    let config = Config::from_file(&opt.config)?;
+
+
+
     let mut control = Control::new(&config)?;
+
 
     match opt.action.as_str() {
         "set" => control.toggle_relay(&opt.relay_name),
