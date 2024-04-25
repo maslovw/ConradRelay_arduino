@@ -2,17 +2,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::time::Duration;
 use anyhow::Result;
-use log::{error, warn};
+use log::{error};
 use serde::Deserialize;
 use serialport::SerialPort;
 use structopt::StructOpt;
-
-//#[derive(StructOpt)]
-//struct Opt {
-//    relay_name: String,
-//    action: String,
-//}
-
 
 #[derive(StructOpt)]
 #[structopt(name = "relay_control", about = "Control relays through a serial connection.")]
@@ -62,7 +55,26 @@ impl Control {
         if let Some(&pin) = self.relays.get(relay_name) {
             self.connection.send_command(8, pin);
         } else {
-            warn!("Toggle unknown relay: {}", relay_name);
+            eprintln!("Toggle unknown relay: {}", relay_name);
+            std::process::exit(1);
+        }
+    }
+
+    pub fn set_relay(&mut self, relay_name: &str) {
+        if let Some(&pin) = self.relays.get(relay_name) {
+            self.connection.send_command(6, pin);
+        } else {
+            eprintln!("Toggle unknown relay: {}", relay_name);
+            std::process::exit(1);
+        }
+    }
+
+    pub fn reset_relay(&mut self, relay_name: &str) {
+        if let Some(&pin) = self.relays.get(relay_name) {
+            self.connection.send_command(7, pin);
+        } else {
+            eprintln!("Toggle unknown relay: {}", relay_name);
+            std::process::exit(1);
         }
     }
 }
@@ -108,11 +120,11 @@ fn main() -> Result<()> {
 
 
     match opt.action.as_str() {
-        "set" => control.toggle_relay(&opt.relay_name),
-        "reset" => control.toggle_relay(&opt.relay_name),
+        "set" => control.set_relay(&opt.relay_name),
+        "reset" => control.reset_relay(&opt.relay_name),
         "toggle" => control.toggle_relay(&opt.relay_name),
-        "on" => control.toggle_relay(&opt.relay_name),
-        "off" => control.toggle_relay(&opt.relay_name),
+        "on" => control.set_relay(&opt.relay_name),
+        "off" => control.reset_relay(&opt.relay_name),
         _ => {
             eprintln!("Invalid action. Please use set, reset, toggle, on, or off.");
             std::process::exit(1);

@@ -65,6 +65,40 @@ relays:
   all: 0b1111
 ```
 
+## Cargo build
+
+Additionally there's rust application to control relay that one can use.
+
+To build:
+
+```
+cd relayCtrl
+cargo build
+cargo install --path .
+```
+usage:
+
+```
+relay_control --help
+relay_control 0.2.0
+Control relays through a serial connection.
+
+USAGE:
+    relay_control [OPTIONS] <relay-name> <action>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -c, --config <config>    Custom path to the configuration file [default: config.toml]
+
+ARGS:
+    <relay-name>    Name of the relay to control.
+    <action>        Action to perform on the relay.
+                    Available actions: set, reset, toggle, on, off
+```
+
 ## Pin usage
 
 Count starts from GPIO D2
