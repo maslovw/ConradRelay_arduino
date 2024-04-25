@@ -1,25 +1,25 @@
-#!/usr/bin/python3
-import sys, os
-
+#!/usr/bin/env python3
+import sys
+import os
 import serial
 import logging
+import yaml
 
-"""
-RELAY_PORT should be set as an evironment variable (serial device) 
+# Get the real path of the script resolving symlinks
+real_script_path = os.path.realpath(sys.argv[0])
+# Get the directory of the real script path
+real_directory_path = os.path.dirname(real_script_path)
+config_path = os.path.join(real_directory_path, 'config.yaml')
 
+RELAY_CONFIG = os.environ.get('RELAY_CONFIG', f'{config_path}')
 
-"""
-RELAY_PORT = os.environ.get('RELAY_PORT', None)
+logger = logging.getLogger('relay')
 
-    
-logger = logging.getLogger('PowerCtrl')
-#
 class Connection():
     def __init__(self, port=None, baudrate=None):
         self.is_connected = False
         if baudrate and port:
             self.connect(port, baudrate)
-
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
@@ -37,7 +37,7 @@ class Connection():
         except Exception as e:
             logger.error("connect failed: {}".format(e))
             self.is_connected = False
-        
+
         return self.is_connected
 
     def close(self):
@@ -53,6 +53,8 @@ class Connection():
         if not self.is_connected:
             return None
         try:
+            command = int(command)
+            data = int(data)
             cmd = bytearray([command & 0xFF, 0, data & 0xFF, 0])
             cmd[3] = self.get_xor(cmd)
             res = self.ser.write(cmd)
@@ -70,27 +72,20 @@ class Connection():
         return resp
 
 class Control():
-    def __init__(self, initialize_pins=True, port=None, baudrate=None ):
-        self.relays ={'kl30': 0b0100,
-                      'kl15': 0b0001,
-                      'eth':  0b1000,
-                      'obd':  0b0010,
-                      'all':  0b11111111,
-                      'eall': 0b1111}
-        self.connection = Connection(port, baudrate)
-        #if initialize_pins:
-            # self.set_pins_default()
-        #    self.init_pins()
+    def __init__(self, config):
+        self.relays = None
+        self.connection = None
+        if config:
+            self.set_config(config)
+
+    def set_config(self, config):
+        self.relays = config['relays']
+        self.connection = Connection(config['relay_port'], config['relay_baudrate'])
+
 
     def __del__(self):
         if self.connection:
             self.connection.close()
-
-    def set_pins_default(self):
-        if self.connection.is_connected:
-            for name, pin in self.relays.items():
-                self.connection.send_command(3, 0xFF)
-                logger.debug('Mode {}:{} is set to "out"'.format(name, pin))
 
     def toggle_relay(self, relay_name):
         pin = self.relays.get(relay_name, None)
@@ -103,60 +98,85 @@ class Control():
     def set_relay(self, relay_name, state=1):
         pin = self.relays.get(relay_name, None)
         if pin:
-            cmd = 6 if (state == 1) else 7
+            cmd = 6 if state == 1 else 7
             result = self.connection.send_command(cmd, pin)
-
-            logger.debug('{} {}[{}]: {}'.format("Set" if state else "Reset",
-                                                relay_name, pin, result))
+            logger.debug('{} {}[{}]: {}'.format("Set" if state else "Reset", relay_name, pin, result))
         else:
             logger.warning('Set unknown relay: {}'.format(relay_name))
-            
+
     def reset_relay(self, relay_name):
         self.set_relay(relay_name, 0)
-        
-#r = Control(False, RELAY_PORT, 9600)
-r = Control()
 
-actions = {'set': r.set_relay,
-       'reset': r.reset_relay,
-       'toggle': r.toggle_relay,
-       'on': r.set_relay,
-       'off': r.reset_relay
-       }          
-         
-def print_help():   
+def print_help(relay_keys, action_keys, config):
     print("Usage: relay [name, action]")
-    print("ex: relay set all")
-    print("ex: relay all off")
-    print("ex: relay toggle kl15")
-    print("Available relay names:", list(r.relays.keys()))
-    print("Available actions:", list(actions.keys()))
-    print("Serial port is taken from ENV_Var RELAY_PORT: {}".format(RELAY_PORT))
-    exit()      
-         
-args = sys.argv[1:]
-cmd_args = []
-action = None
-pin = None
-
-
-for i, arg in enumerate(args):
-    if arg == '-h' or arg == '--help':# or arg == 'status':
-        print_help()
-    if arg in actions:
-        action = actions[arg]
+    print("This script sends UART command to relay module")
+    print("Examples: ")
+    if relay_keys:
+        import random
+        relay_keys = list(relay_keys)
+        if action_keys:
+            action_keys=list(action_keys)
+        for relay in relay_keys:
+            if action_keys:
+                action = random.choice(action_keys)
+            print(f" relay {relay} {action}")
+        print("Available relay names:", ", ".join(relay_keys))
     else:
-        pin = r.relays.get(arg)
-        if pin:
-            pin = arg
+        print(" relay set all")
+        print(" relay all off")
+        print(" relay toggle r1")
 
-if action is None or pin is None :
-    print_help()
-            
-if RELAY_PORT is None:
-    print("Please, specify serial port in ENV_Var RELAY_PORT")
-    exit()  
-    
-r.connection.connect(RELAY_PORT, 9600)
-            
-action(pin)
+    if action_keys:
+        print("Available actions:", ", ".join(list(action_keys)))
+    print("")
+    print(f"Config file can be specified in environment variable RELAY_CONFIG")
+    print(f"Current configuration used: '{RELAY_CONFIG}'")
+    if config:
+        print(f"Configured port {config['relay_port']}")
+        print(f"Configured baudrate {config['relay_baudrate']}")
+
+    print("")
+    print(f"Note: arduino relay module Baudrate is 9600, but Conrad Relay module is 19200")
+    print("")
+
+def main():
+    r = Control(None)
+    actions = {'set': r.set_relay, 'reset': r.reset_relay, 'toggle': r.toggle_relay, 'on': r.set_relay, 'off': r.reset_relay}
+
+    args = sys.argv[1:]
+    cmd_args = []
+    action = None
+    pin = None
+
+    try:
+        with open(f'{RELAY_CONFIG}', 'r') as file:
+            config = yaml.safe_load(file)
+
+        r.set_config(config)
+    except Exception as e:
+        print_help(None, actions.keys(), None)
+        logger.error(f"Reading config: '{RELAY_CONFIG}' failed")
+        logger.error(e)
+        sys.exit(1)
+
+    for i, arg in enumerate(args):
+        if arg == '-h' or arg == '--help':
+            print_help(r.relays.keys(), actions.keys(), config)
+            sys.exit(0)
+        if arg in actions:
+            action = actions[arg]
+        else:
+            pin = r.relays.get(arg)
+            if pin:
+                pin = arg
+
+    if action is None or pin is None :
+        print_help(r.relays.keys(), actions.keys(), config)
+        sys.exit(1)
+
+
+    action(pin)
+
+if __name__ == "__main__":
+    main()
+
