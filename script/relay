@@ -15,6 +15,38 @@ RELAY_CONFIG = os.environ.get('RELAY_CONFIG', f'{config_path}')
 
 logger = logging.getLogger('relay')
 
+def print_help(relay_keys, action_keys, config):
+    print("Usage: relay [name, action]")
+    print("This script sends UART command to relay module")
+    print("Examples: ")
+    if relay_keys:
+        import random
+        relay_keys = list(relay_keys)
+        if action_keys:
+            action_keys=list(action_keys)
+        for relay in relay_keys:
+            if action_keys:
+                action = random.choice(action_keys)
+            print(f" relay {relay} {action}")
+        print("Available relay names:", ", ".join(relay_keys))
+    else:
+        print(" relay set all")
+        print(" relay all off")
+        print(" relay toggle r1")
+
+    if action_keys:
+        print("Available actions:", ", ".join(list(action_keys)))
+    print("")
+    print(f"Config file can be specified in environment variable RELAY_CONFIG")
+    print(f"Current configuration used: '{RELAY_CONFIG}'")
+    if config:
+        print(f"Configured port {config['relay_port']}")
+        print(f"Configured baudrate {config['relay_baudrate']}")
+
+    print("")
+    print("Note: arduino relay module Baudrate is 9600, but Conrad Relay module is 19200")
+    print("")
+
 class Connection():
     def __init__(self, port=None, baudrate=None):
         self.is_connected = False
@@ -106,38 +138,6 @@ class Control():
 
     def reset_relay(self, relay_name):
         self.set_relay(relay_name, 0)
-
-def print_help(relay_keys, action_keys, config):
-    print("Usage: relay [name, action]")
-    print("This script sends UART command to relay module")
-    print("Examples: ")
-    if relay_keys:
-        import random
-        relay_keys = list(relay_keys)
-        if action_keys:
-            action_keys=list(action_keys)
-        for relay in relay_keys:
-            if action_keys:
-                action = random.choice(action_keys)
-            print(f" relay {relay} {action}")
-        print("Available relay names:", ", ".join(relay_keys))
-    else:
-        print(" relay set all")
-        print(" relay all off")
-        print(" relay toggle r1")
-
-    if action_keys:
-        print("Available actions:", ", ".join(list(action_keys)))
-    print("")
-    print(f"Config file can be specified in environment variable RELAY_CONFIG")
-    print(f"Current configuration used: '{RELAY_CONFIG}'")
-    if config:
-        print(f"Configured port {config['relay_port']}")
-        print(f"Configured baudrate {config['relay_baudrate']}")
-
-    print("")
-    print(f"Note: arduino relay module Baudrate is 9600, but Conrad Relay module is 19200")
-    print("")
 
 def main():
     r = Control(None)
