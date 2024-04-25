@@ -1,7 +1,7 @@
 # ConradRelay_arduino
 Code for Arduino (nano in my case) to work as Conrad Relay Card
 
-Python example: 
+Python example:
 
 ```python
 import serial
@@ -17,7 +17,7 @@ def cmd(com, data):
 
 print('init')
 cmd(1, 0)
-        
+
 print('set all')
 cmd(3, 0xFF)
 
@@ -31,29 +31,43 @@ cmd(8, 1)
 ### script/relay
 
 ```
+> relay --help
+
 Usage: relay [name, action]
-ex: relay set all
-ex: relay all off
-ex: relay toggle kl15
-Available relay names: ['kl30', 'kl15', 'eth', 'obd', 'all', 'eall', '1', '2', '3', '4', '5', '6']
-Available actions: ['set', 'reset', 'toggle', 'on', 'off']
-Serial port is taken from ENV_Var RELAY_PORT: COM8
+This script sends UART command to relay module
+Examples:
+ relay r1 on
+ relay r2 toggle
+ relay r3 toggle
+ relay r4 off
+ relay all off
+Available relay names: r1, r2, r3, r4, all
+Available actions: set, reset, toggle, on, off
+
+Config file can be specified in environment variable RELAY_CONFIG
+Current configuration used: '/home/maslovw/work/tools/ConradRelay_arduino/script/config.yaml'
+Configured port /dev/ttyUSB0
+Configured baudrate 9600
+
+Note: arduino relay module Baudrate is 9600, but Conrad Relay module is 19200
 
 ```
 
-To change pin names and ports, change it here: 
+To change pin names and ports, change it the config.yaml:
 ```
-self.relays ={  'kl30': 0b0100, #d4
-                'kl15': 0b0001, #d2
-                'eth':  0b1000, #d5
-                'obd':  0b0010, #d3
-                'all':  0b11111111,
-                'eall': 0b1111}
+relay_port: "/dev/ttyUSB0"
+relay_baudrate: 9600
+relays:
+  r1:  0b0001
+  r2:  0b0010
+  r3:  0b0100
+  r4:  0b1000
+  all: 0b1111
 ```
 
-## Pin usage 
+## Pin usage
 
-Count starts from GPIO D2 
+Count starts from GPIO D2
 
 ## Relay
 
@@ -71,5 +85,5 @@ Count starts from GPIO D2
 ![](img/arduino_nano_bottom.png)
 
 - flashing:
-  
+
 ![](img/README_2021-06-11-14-30-15.png)
